@@ -33,6 +33,6 @@ END {
     for (diff=resultsLen[i]; diff<targetsProbeNums[targets[i]]; diff=diff+1) {
       results[i]=results[i]" -"
     }
-    print targets[i]" :"results[i]
+    print results[i]
   }
 }
