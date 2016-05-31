@@ -15,6 +15,7 @@ install those libraries with the following:
 
 sudo apt-get install libnet1-dev
 sudo apt-get install libpcap-dev
+sudo apt-get install 'dbus.*dev'
 
 Or, alternatively, libnet1 is conveniently hosted on GitHub:
 http://github.com/sam-github/libnet
@@ -39,7 +40,7 @@ sudo chmod a+s tcpping
 
 1> add -q, -s , -f , -T option
 2> output mdev
-3> multiple host 
+3> multiple host
 
 ----Question--------------------------------------------------------------
 ifconfig eth0 mtu 1500
