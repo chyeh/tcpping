@@ -4,7 +4,7 @@ do
   results=""
   for c in {1..4}
   do
-    results[c]=`tcpping -i 0.01 -c 1 $var | ./tcpping.awk`
+    results[c]=`tcpping -i 0.01 -c 1 $var | tcpping.awk`
   done
   echo $var ":" ${results[*]}
 done
