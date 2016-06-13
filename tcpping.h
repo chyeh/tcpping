@@ -15,8 +15,8 @@
 #define F_QUIET 0x010
 
 #define MAX_PAYLOAD_S 1440
-#define PACKET_HISTORY 1461 
-#define MAX_HOST 1024 
+#define PACKET_HISTORY 1461
+#define MAX_HOST 1024
 
 u_short dest_port = 80;
 struct in_addr src_ip;
@@ -74,6 +74,8 @@ int successful_pings;
 } HOST_ENTRY;
 
 HOST_ENTRY host_array[MAX_HOST];
+float** host_array_data;
+int host_array_data_tail[MAX_HOST];
 
 char* find_device(char *dq);
 char *find_source_ip(char *dq);

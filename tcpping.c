@@ -60,6 +60,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "tcpping.h"
 
+int nqmFormat = 0;
 
 void handle_sigalrm(int junk)
 {
@@ -156,8 +157,8 @@ static long llsqrt(long long a)
         while (x < prev) {
             prev = x;
             x = (x+(a/x))/2;
-        }   
-    }   
+        }
+    }
 
     return (long)x;
 }
@@ -167,32 +168,56 @@ void print_stats(int junk)
 
     int i = 0;
 
+		size_t name_width = 0;
+    for (i=0; i<host_num; i++)
+      if (strlen(host_array[i].dest_name) > name_width)
+        name_width = strlen(host_array[i].dest_name);
+    int width = (int)name_width;
+
     for (i = 0; i < host_num; i++)
     {
         if (host_array[i].successful_pings > 0)
         {
-            host_array[i].sum_ping /= host_array[i].successful_pings; 
-            host_array[i].sum_ping2 /= host_array[i].successful_pings; 
+            host_array[i].sum_ping /= host_array[i].successful_pings;
+            host_array[i].sum_ping2 /= host_array[i].successful_pings;
             host_array[i].mdev_ping = (float)llsqrt(host_array[i].sum_ping2 - host_array[i].sum_ping * host_array[i].sum_ping)/1000;
 
-            printf("\n");
+						if (nqmFormat) {
+							printf("%-*s :", width, host_array[i].dest_name);
+							int j;
+							for (j=0; j<host_array_data_tail[i]; j++)
+								printf(" %.3f", host_array_data[i][j]);
+							for (; j<host_array[i].total_syns; j++)
+								printf(" -");
+							printf("\n");
+						} else {
+	            printf("\n");
 
-            printf("--- %s TCP ping statistics ---\n", host_array[i].dest_name);
-            host_array[i].total_syns = (host_array[i].total_syns != 0 ? host_array[i].total_syns : 1);
-            printf("%d SYN packets transmitted, %d SYN/ACKs and %d RSTs received, %.1f%% packet loss\n", 
-                    host_array[i].total_syns, host_array[i].total_synacks, host_array[i].total_rsts, 
-                    (1 - (host_array[i].successful_pings*1.0/host_array[i].total_syns))*100);
-            printf("round-trip min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n",
-                    host_array[i].min_ping, host_array[i].avg_ping, host_array[i].max_ping, host_array[i].mdev_ping);
-        }
+	            printf("--- %s TCP ping statistics ---\n", host_array[i].dest_name);
+	            host_array[i].total_syns = (host_array[i].total_syns != 0 ? host_array[i].total_syns : 1);
+	            printf("%d SYN packets transmitted, %d SYN/ACKs and %d RSTs received, %.1f%% packet loss\n",
+	                    host_array[i].total_syns, host_array[i].total_synacks, host_array[i].total_rsts,
+	                    (1 - (host_array[i].successful_pings*1.0/host_array[i].total_syns))*100);
+	            printf("round-trip min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n",
+	                    host_array[i].min_ping, host_array[i].avg_ping, host_array[i].max_ping, host_array[i].mdev_ping);
+						}
+				}
         else
         {
-            printf("\n");
+						if (nqmFormat) {
+							printf("%-*s :", width, host_array[i].dest_name);
+							int j;
+							for (j=0; j<host_array[i].total_syns; j++)
+								printf(" -");
+							printf("\n");
+						} else {
+	            printf("\n");
 
-            printf("--- %s TCP ping statistics ---\n", host_array[i].dest_name);
-            host_array[i].total_syns = (host_array[i].total_syns != 0 ? host_array[i].total_syns : 1);
-            printf("%d SYN packets transmitted, %d SYN/ACKs and %d RSTs received, %d%% packet loss\n", 
-                    host_array[i].total_syns, 0, 0, 100);
+	            printf("--- %s TCP ping statistics ---\n", host_array[i].dest_name);
+	            host_array[i].total_syns = (host_array[i].total_syns != 0 ? host_array[i].total_syns : 1);
+	            printf("%d SYN packets transmitted, %d SYN/ACKs and %d RSTs received, %d%% packet loss\n",
+	                    host_array[i].total_syns, 0, 0, 100);
+						}
         }
 
     }
@@ -220,7 +245,7 @@ void show_packet(struct ip *ip, struct tcphdr *tcp, const struct pcap_pkthdr *he
 	}
 
 	if (tcp) {
-		snprintf(flags, sizeof(flags), "[%s%s%s%s%s%s]", 
+		snprintf(flags, sizeof(flags), "[%s%s%s%s%s%s]",
 			 (tcp_flag_isset(tcp, TH_FIN) ? "F" : ""),
 			 (tcp_flag_isset(tcp, TH_SYN) ? "S" : ""),
 			 (tcp_flag_isset(tcp, TH_RST) ? "R" : ""),
@@ -264,7 +289,7 @@ void usage()
     fprintf(out, "\n" );
     fprintf(out, "Options:\n" );
     fprintf(out, "   -h         this help\n" );
-    fprintf(out, "   -c n       count of pings to send to each target (default infinity)\n");  
+    fprintf(out, "   -c n       count of pings to send to each target (default infinity)\n");
     fprintf(out, "   -f file    read list of targets from a file\n" );
     fprintf(out, "   -t n       Set the IP TTL value (Time To Live hops)\n");
     fprintf(out, "   -i n       interval between sending ping packets (in sec) (default %d)\n", 1);
@@ -306,7 +331,7 @@ int get_packet_type(struct ip *ip, struct tcphdr *tcp, struct icmp *icmp)
 	/* In English:  "Response packet we're interested in, from the other host" */
 	else if ( !cmp_addr(ip->ip_src) && ip->ip_p == IPPROTO_TCP &&
 			(
-				(tcp_flag_isset(tcp, TH_SYN) && tcp_flag_isset(tcp, TH_ACK)) || 
+				(tcp_flag_isset(tcp, TH_SYN) && tcp_flag_isset(tcp, TH_ACK)) ||
 				tcp_flag_isset(tcp, TH_RST)
 			)
 		) {
@@ -412,7 +437,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 		}
 
         host =get_host(ip->ip_src);
-		
+
         if (tcp_flag_isset(tcp, TH_SYN)) {
 		    seqno = tcpseq_to_orderseq(ntohl(tcp->th_ack) - 1);
 			flags = "SYN/ACK";
@@ -448,13 +473,22 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 		/* Raise the flag to the user that we saw it... */
         if (!(options & F_QUIET))
         {
-            printf("%s from %s: seq=%u ttl=%d time=%.3f%s\n", 
-                    flags,
-                    inet_ntoa(ip->ip_src), 
-                    ntohl(tcp->th_ack) - 1,
-                    ip->ip_ttl,
-                    ms, units
-                  );
+						if (!nqmFormat) {
+		            printf("%s from %s: seq=%u ttl=%d time=%.3f%s\n",
+		                    flags,
+		                    inet_ntoa(ip->ip_src),
+		                    ntohl(tcp->th_ack) - 1,
+		                    ip->ip_ttl,
+		                    ms, units
+		            );
+						} else {
+								int i;
+								for (i=0; i<host_num; i++) {
+									if ((int)(host_array[i].dest_ip) == (int)(ip->ip_src.s_addr)) {
+										host_array_data[i][host_array_data_tail[i]++]=ms;
+									}
+								}
+						}
         }
 
 		if (ms < host->min_ping || host->min_ping == 0) {
@@ -464,7 +498,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 		if (ms > host->max_ping) {
 			host->max_ping = ms;
 		}
-		
+
 		host->avg_ping = ((host->avg_ping * host->successful_pings) + ms)/(host->successful_pings+1);
 		host->successful_pings++;
 
@@ -485,7 +519,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 		rettcp = (struct tcphdr *)(packet + frame_offset + size_ip + 8 + size_ip);
 
 		/* After we build the headers for ICMP, check the hosts / protocol / etc. */
-		if ( !cmp_addr(retip->ip_dst) && retip->ip_p == IPPROTO_TCP && 
+		if ( !cmp_addr(retip->ip_dst) && retip->ip_p == IPPROTO_TCP &&
 			tcp_flag_isset(rettcp, TH_SYN)) {
 
 			r = gettimeofday(&tv_timxceed, NULL);
@@ -506,11 +540,13 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 
 			/* Extracting the sequence number would be unreliable as only
 			 * 64 bits of the TCP header are required to be present. */
-			printf("Time to live exceeded from %s: ttl=%d time=%.3f%s\n",
-				   inet_ntoa(ip->ip_src),
-				   ip->ip_ttl,
-				   ms, units
-			);
+			if (!nqmFormat) {
+				printf("Time to live exceeded from %s: ttl=%d time=%.3f%s\n",
+				   			inet_ntoa(ip->ip_src),
+				   			ip->ip_ttl,
+				   			ms, units
+				);
+			}
 
 			/* tell parent to continue */
 			write(notify_fd, "foo", 3);
@@ -523,21 +559,21 @@ void cmb_filter(char *filter_expression, int length)
     int i = 0;
     int ret = 0;
 
-	ret = snprintf(filter_expression, length, 
+	ret = snprintf(filter_expression, length,
 		"(host %s", inet_ntoa2(host_array[0].dest_ip) );
     filter_expression += ret;
     length -= ret;
 
     for (i=1; i<host_num; i++)
     {
-	    ret = snprintf(filter_expression, length, 
+	    ret = snprintf(filter_expression, length,
 		" or host %s", inet_ntoa2(host_array[i].dest_ip) );
 
         filter_expression += ret;
         length -= ret;
     }
 
-	snprintf(filter_expression, length, 
+	snprintf(filter_expression, length,
 		" and port %u) or icmp[icmptype] == icmp-timxceed", dest_port);
 }
 
@@ -556,7 +592,7 @@ void sniff_packets(char *device_name)
 		 fprintf(stderr, "pcap_lookupnet: %s\n", errbuf);
 		 exit(1);
 	 }
-	
+
 	 handle = pcap_open_live(device_name, BUFSIZ, 0, 0, errbuf);
 	 if (!handle) {
 		 fprintf(stderr, "pcap_open_live: %s\n", errbuf);
@@ -702,14 +738,14 @@ void inject_syn_packet(int sequence, HOST_ENTRY *tp_host)
     /* 构建TCP的选项,通常在第一个TCP通信报文中设置MSS */
     tcp_op_tag = libnet_build_tcp_options(
             (uint8_t*)"\003\003\012\001\002\004\005\264\010\012\077\077\077\077\000\000\000\000\000\000",
-            20, 
-            l,  
-            0); 
-    if (tcp_op_tag == -1) 
-    {   
+            20,
+            l,
+            0);
+    if (tcp_op_tag == -1)
+    {
         fprintf(stderr, "Can't build TCP options: %s\n", libnet_geterror(l));
         exit(1);
-    }   
+    }
 #endif
 
 	r = libnet_build_tcp(
@@ -804,7 +840,7 @@ void add_host(char *dst_host)
 		exit(1);
 	}
 	host_array[host_num].dest_quad = strdup(dest_quad);
-	
+
     host_num++;
 }
 
@@ -813,7 +849,7 @@ int main(int argc, char *argv[])
 	/* Create a safe environment for setuid safety */
 	sanitize_environment();
 
-    int hnt;
+  int hnt;
 	int r;
 	int c;
 	char *device_name = NULL;
@@ -827,9 +863,9 @@ int main(int argc, char *argv[])
 	myname = argv[0];
 
 	bzero(&src_ip, sizeof(struct in_addr));
-    memset(host_array, 0, sizeof(host_array));
+  memset(host_array, 0, sizeof(host_array));
 
-	while ((c = getopt(argc, argv, "hqs:c:p:f:i:vI:t:S:T:")) != -1) {
+	while ((c = getopt(argc, argv, "hqs:c:p:f:i:vI:t:S:T:n")) != -1) {
 		switch (c) {
 			case 'c':
 				count = atoi(optarg);
@@ -885,6 +921,9 @@ int main(int argc, char *argv[])
 			case 'T':
 				timeout = atoi(optarg) * 1000;
 				break;
+			case 'n':
+  			nqmFormat=1;
+  			break;
 			default:
 				usage();
 		}
@@ -949,6 +988,11 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+		host_array_data = malloc(host_num*sizeof(float*));
+		int i;
+		for(i=0; i<host_num; i++)
+			host_array_data[i]=malloc(count*sizeof(float));
+
 	/* Figure out the source IP if we didn't specify one */
 	if (src_ip.s_addr == 0) {
 		src_quad = find_source_ip(host_array[0].dest_quad);
@@ -978,13 +1022,13 @@ int main(int argc, char *argv[])
 	l = libnet_init(LIBNET_RAW4, device_name, errbuf);
 	if (l == NULL) {
 		fprintf(stderr, "libnet_init: %s", errbuf);
-		exit(1); 
+		exit(1);
 	}
 
 
     srandom(time(NULL));
     sequence_offset = random();
-         
+
 
 	/* pipe is to synchronize with our child */
 	r = pipe(pipefds);
@@ -1030,8 +1074,13 @@ int main(int argc, char *argv[])
                 {
                     if (!(options & F_QUIET))
                     {
-                        printf("TCP PING %s (%s:%u)\n", host_array[hnt].dest_name, 
-                            host_array[hnt].dest_quad, dest_port);
+											if (!nqmFormat)
+											{
+                        printf("TCP PING %s (%s:%u)\n",
+														host_array[hnt].dest_name,
+                            host_array[hnt].dest_quad,
+														dest_port);
+											}
                     }
 			        inject_syn_packet(sequence++, &host_array[hnt]);
 			        msleep(interval);
