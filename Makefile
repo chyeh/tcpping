@@ -9,8 +9,6 @@ tcpping: tcpping.c
 
 install:
 	install -m 4755 ./tcpping /usr/bin/tcpping
-	install -m 4755 ./tcpping.sh /usr/bin/tcpping.sh
-	install -m 4755 ./tcpping.awk /usr/bin/tcpping.awk
 
 remove:
 	rm -f /usr/bin/tcpping
