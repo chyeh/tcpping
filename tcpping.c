@@ -830,7 +830,8 @@ void add_host(char *dst_host)
 		perror("bad address");
 		exit(1);
 	}
-    host_array[host_num].dest_name = strdup(he->h_name);
+  //host_array[host_num].dest_name = strdup(he->h_name);
+	host_array[host_num].dest_name = strdup(dst_host);
 
 	bzero(&dest_addr, sizeof(struct in_addr));
 	dest_addr.s_addr = host_array[host_num].dest_ip;
